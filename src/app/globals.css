@@ -87,7 +87,7 @@
 
   /* Special Colors */
   --glass-border: var(--border-medium);
-  --bg-glass: rgba(255, 255, 255, 0.7);
+  --bg-glass: rgba(255, 255, 255, 0.88);
 
   /* Typography */
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -125,7 +125,7 @@
 
   /* Special Colors */
   --glass-border: rgba(255, 255, 255, 0.1);
-  --bg-glass: rgba(30, 30, 30, 0.75);
+  --bg-glass: rgba(30, 30, 30, 0.92);
 
   /* Shadows - Adjusted for Dark Mode */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -520,8 +520,10 @@ select.input {
   left: 0;
   right: 0;
   z-index: var(--z-fixed);
-  background: var(--bg-primary);
-  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
   box-shadow: var(--shadow-xs);
 }
 
@@ -585,19 +587,19 @@ select.input {
 .nav-mobile {
   display: none;
   position: fixed;
-  bottom: 20px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 40px);
   max-width: 400px;
   z-index: var(--z-fixed);
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  padding: 4px 0;
+  background: rgba(18, 18, 18, 0.92) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 24px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  padding: 6px 0;
 }
 
 .nav-mobile-inner {
@@ -614,18 +616,18 @@ select.input {
   align-items: center;
   gap: 4px;
   padding: 8px 4px;
-  color: var(--text-tertiary);
+  color: rgba(255, 255, 255, 0.5) !important;
   text-decoration: none;
   transition: all var(--transition-fast);
   flex: 1;
 }
 
 .nav-mobile-item:hover {
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.8) !important;
 }
 
 .nav-mobile-item.active {
-  color: var(--color-primary);
+  color: var(--color-primary) !important;
   transform: translateY(-2px);
 }
 
