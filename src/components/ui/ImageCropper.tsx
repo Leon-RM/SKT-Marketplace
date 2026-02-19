@@ -1,23 +1,26 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { ImageUploadHelper } from './Helpers';
-import { getImageInfo, formatFileSize, validateFileSize, blobToBase64, uploadBase64Image } from '@/lib/imgbb';
+import { getImageInfo, blobToBase64, uploadBase64Image } from '@/lib/imgbb';
+import { XIcon, ImageIcon, CheckIcon, CameraIcon, InfoIcon } from './Icons';
 
 interface ImageCropperProps {
     aspectRatio?: number;
     onImageUploaded: (imageUrl: string) => void;
     onClose: () => void;
     recommendedSize?: string;
+    label?: string;
 }
 
 export default function ImageCropper({
     aspectRatio = 1,
     onImageUploaded,
     onClose,
-    recommendedSize = '800x800 พิกเซล'
+    recommendedSize = '1200x1200 px',
+    label
 }: ImageCropperProps) {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imageSrc, setImageSrc] = useState<string>('');
@@ -28,14 +31,22 @@ export default function ImageCropper({
     const [error, setError] = useState<string>('');
     const imgRef = useRef<HTMLImageElement>(null);
 
+    // Prevent background scrolling when modal is open
+    useEffect(() => {
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
+
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Validate file size
-        const validation = validateFileSize(file);
-        if (!validation.valid) {
-            setError(validation.error || 'ไฟล์มีขนาดใหญ่เกินไป');
+        // Simple size check (32MB)
+        if (file.size > 32 * 1024 * 1024) {
+            setError('ไฟล์มีขนาดใหญ่เกินไป (สูงสุด 32MB)');
             return;
         }
 
@@ -64,8 +75,12 @@ export default function ImageCropper({
         const scaleX = imgRef.current.naturalWidth / imgRef.current.width;
         const scaleY = imgRef.current.naturalHeight / imgRef.current.height;
 
-        canvas.width = completedCrop.width;
-        canvas.height = completedCrop.height;
+        // Use natural dimensions for HD quality
+        canvas.width = completedCrop.width * scaleX;
+        canvas.height = completedCrop.height * scaleY;
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
         ctx.drawImage(
             imgRef.current,
@@ -75,11 +90,12 @@ export default function ImageCropper({
             completedCrop.height * scaleY,
             0,
             0,
-            completedCrop.width,
-            completedCrop.height
+            canvas.width,
+            canvas.height
         );
 
         return new Promise((resolve) => {
+            // Use high quality JPEG
             canvas.toBlob(async (blob) => {
                 if (blob) {
                     const base64 = await blobToBase64(blob);
@@ -87,7 +103,7 @@ export default function ImageCropper({
                 } else {
                     resolve(null);
                 }
-            }, 'image/jpeg', 0.9);
+            }, 'image/jpeg', 0.95);
         });
     }, [completedCrop]);
 
@@ -99,10 +115,10 @@ export default function ImageCropper({
             let base64: string | null = null;
 
             if (completedCrop && imgRef.current) {
-                // Upload cropped image
+                // Upload cropped image (HD)
                 base64 = await getCroppedImage();
             } else if (imageFile) {
-                // Upload original image without cropping
+                // Upload original image without cropping (if natural quality preferred)
                 const reader = new FileReader();
                 base64 = await new Promise((resolve) => {
                     reader.onload = () => {
@@ -135,38 +151,86 @@ export default function ImageCropper({
         setUploading(false);
     };
 
+    const getRatioLabel = (ratio: number) => {
+        if (Math.abs(ratio - 1) < 0.01) return 'จัตุรัส (1:1)';
+        if (Math.abs(ratio - 16 / 9) < 0.01) return 'แนวกว้าง (16:9)';
+        if (Math.abs(ratio - 3 / 1) < 0.01) return 'แบนเนอร์ (3:1)';
+        if (Math.abs(ratio - 2 / 1) < 2.0) return `สัดส่วน ${ratio.toFixed(1)}:1`;
+        return 'กำหนดเอง';
+    };
+
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-                <div className="modal-header">
-                    <h3 className="modal-title">📷 อัปโหลดรูปภาพ</h3>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+            <div className="card-elevated" onClick={(e) => e.stopPropagation()} style={{
+                maxWidth: '600px',
+                width: '95%',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                padding: 'var(--space-6)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-4)',
+                boxShadow: 'var(--shadow-xl)',
+                position: 'relative'
+            }}>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    position: 'sticky',
+                    top: 0,
+                    background: 'var(--bg-primary)',
+                    zIndex: 10,
+                    paddingBottom: 'var(--space-2)',
+                    margin: 'calc(var(--space-6) * -1) calc(var(--space-6) * -1) 0',
+                    padding: 'var(--space-6) var(--space-6) var(--space-2)',
+                    borderBottom: '1px solid var(--border-light)'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <CameraIcon size={24} className="text-primary" />
+                        <h3 style={{ margin: 0, fontSize: '1.25rem' }}>{label || 'อัปโหลดรูปภาพ'}</h3>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}
+                    >
+                        <XIcon size={24} />
+                    </button>
                 </div>
 
-                <ImageUploadHelper
-                    recommendedSize={recommendedSize}
-                    currentSize={imageInfo?.sizeText}
-                    currentDimensions={imageInfo ? `${imageInfo.width} x ${imageInfo.height} px` : undefined}
-                />
+                <div style={{ marginTop: 'var(--space-2)' }}>
+                    <ImageUploadHelper
+                        recommendedSize={recommendedSize}
+                        currentSize={imageInfo?.sizeText}
+                        currentDimensions={imageInfo ? `${imageInfo.width} x ${imageInfo.height} px` : undefined}
+                    />
+                </div>
 
                 {!imageSrc ? (
-                    <div style={{ textAlign: 'center', padding: 'var(--space-xl)' }}>
+                    <div style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
                         <label
                             htmlFor="image-upload"
-                            className="glass-card"
+                            className="card"
                             style={{
-                                display: 'block',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 cursor: 'pointer',
-                                padding: 'var(--space-2xl)',
-                                border: '2px dashed var(--glass-border)',
-                                transition: 'all var(--transition-base)'
+                                padding: 'var(--space-12)',
+                                border: '2px dashed var(--border-medium)',
+                                background: 'var(--bg-secondary)',
+                                transition: 'all var(--transition-base)',
+                                minHeight: '200px'
                             }}
                         >
-                            <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}>📁</div>
-                            <div style={{ color: 'var(--text-secondary)' }}>
+                            <div style={{ marginBottom: 'var(--space-4)', color: 'var(--text-tertiary)' }}>
+                                <ImageIcon size={48} />
+                            </div>
+                            <div style={{ fontWeight: '600', marginBottom: 'var(--space-1)' }}>
                                 คลิกเพื่อเลือกรูปภาพ
                             </div>
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 'var(--space-sm)' }}>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
                                 รองรับ JPG, PNG, WEBP (ไม่เกิน 32MB)
                             </div>
                         </label>
@@ -181,10 +245,14 @@ export default function ImageCropper({
                 ) : (
                     <div>
                         <div style={{
-                            marginBottom: 'var(--space-md)',
+                            marginBottom: 'var(--space-4)',
                             borderRadius: 'var(--radius-md)',
                             overflow: 'hidden',
-                            background: 'var(--bg-glass)'
+                            background: 'var(--bg-secondary)',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            maxHeight: '400px',
+                            border: '1px solid var(--border-light)'
                         }}>
                             <ReactCrop
                                 crop={crop}
@@ -192,47 +260,66 @@ export default function ImageCropper({
                                 onComplete={(c) => setCompletedCrop(c)}
                                 aspect={aspectRatio}
                             >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     ref={imgRef}
                                     src={imageSrc}
                                     alt="Crop preview"
-                                    style={{ maxWidth: '100%', maxHeight: '400px' }}
+                                    style={{ maxWidth: '100%', maxHeight: '400px', display: 'block' }}
                                 />
                             </ReactCrop>
                         </div>
 
                         <div style={{
                             display: 'flex',
-                            flexDirection: 'column',
-                            gap: 'var(--space-sm)',
-                            marginBottom: 'var(--space-md)',
-                            fontSize: '0.85rem',
-                            color: 'var(--text-secondary)'
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 'var(--space-4)',
+                            padding: 'var(--space-3)',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-light)'
                         }}>
-                            <div>💡 ลากเพื่อเลือกพื้นที่ที่ต้องการ หรือกด &quot;อัปโหลด&quot; เพื่อใช้รูปเต็ม</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                <InfoIcon size={16} />
+                                <span>ลากเพื่อเลือกพื้นที่ หรือใช้รูปแบบ HD</span>
+                            </div>
+                            <div className="badge badge-primary" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
+                                {getRatioLabel(aspectRatio)}
+                            </div>
                         </div>
                     </div>
                 )}
 
                 {error && (
                     <div style={{
-                        padding: 'var(--space-md)',
+                        padding: 'var(--space-4)',
                         background: 'rgba(239, 68, 68, 0.1)',
                         border: '1px solid rgba(239, 68, 68, 0.3)',
                         borderRadius: 'var(--radius-md)',
                         color: '#EF4444',
-                        marginBottom: 'var(--space-md)'
+                        marginBottom: 'var(--space-4)',
+                        fontSize: '0.9rem'
                     }}>
-                        ⚠️ {error}
+                        {error}
                     </div>
                 )}
 
-                <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
+                <div style={{
+                    display: 'flex',
+                    gap: 'var(--space-4)',
+                    position: 'sticky',
+                    bottom: 0,
+                    background: 'var(--bg-primary)',
+                    zIndex: 10,
+                    paddingTop: 'var(--space-4)',
+                    margin: '0 calc(var(--space-6) * -1) calc(var(--space-6) * -1)',
+                    padding: 'var(--space-4) var(--space-6) var(--space-6)',
+                    borderTop: '1px solid var(--border-light)'
+                }}>
                     {imageSrc && (
                         <>
                             <button
-                                className="btn btn-glass"
+                                className="btn btn-outline"
                                 onClick={() => {
                                     setImageSrc('');
                                     setImageFile(null);
@@ -240,23 +327,26 @@ export default function ImageCropper({
                                     setCrop(undefined);
                                     setCompletedCrop(undefined);
                                 }}
-                                style={{ flex: 1 }}
+                                style={{ flex: 1, justifyContent: 'center' }}
                             >
-                                🔄 เลือกรูปใหม่
+                                เลือกรูปใหม่
                             </button>
                             <button
                                 className="btn btn-primary"
                                 onClick={handleUpload}
                                 disabled={uploading}
-                                style={{ flex: 1 }}
+                                style={{ flex: 1, justifyContent: 'center', gap: 'var(--space-2)' }}
                             >
                                 {uploading ? (
                                     <>
                                         <span className="loading-spinner" style={{ width: '20px', height: '20px' }}></span>
-                                        กำลังอัปโหลด...
+                                        <span>กำลังอัปโหลด...</span>
                                     </>
                                 ) : (
-                                    '✓ อัปโหลด'
+                                    <>
+                                        <CheckIcon size={20} />
+                                        <span>อัปโหลด</span>
+                                    </>
                                 )}
                             </button>
                         </>
@@ -266,3 +356,5 @@ export default function ImageCropper({
         </div>
     );
 }
+
+

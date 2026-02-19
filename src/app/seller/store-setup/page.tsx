@@ -301,7 +301,8 @@ export default function StoreSetupPage() {
             {showProfileCropper && (
                 <ImageCropper
                     aspectRatio={1}
-                    recommendedSize="400x400 พิกเซล"
+                    recommendedSize="800x800 px (HD)"
+                    label="รูปโปรไฟล์ร้าน"
                     onImageUploaded={(url) => setProfilePic(url)}
                     onClose={() => setShowProfileCropper(false)}
                 />
@@ -309,8 +310,9 @@ export default function StoreSetupPage() {
 
             {showBannerCropper && (
                 <ImageCropper
-                    aspectRatio={16 / 9}
-                    recommendedSize="1200x675 พิกเซล"
+                    aspectRatio={3 / 1}
+                    recommendedSize="1800x600 px (HD Wide)"
+                    label="รูปแบนเนอร์ร้าน"
                     onImageUploaded={(url) => setBannerPic(url)}
                     onClose={() => setShowBannerCropper(false)}
                 />

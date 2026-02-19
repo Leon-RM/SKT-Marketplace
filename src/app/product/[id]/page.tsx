@@ -515,7 +515,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             {showImageCropper && (
                 <ImageCropper
                     aspectRatio={1}
-                    recommendedSize="800x800 พิกเซล"
+                    recommendedSize="800x800 px (HD Review Image)"
+                    label="แนบรูปรีวิวสินค้า"
                     onImageUploaded={(url) => {
                         setReviewImages([...reviewImages, url]);
                         setShowImageCropper(false);

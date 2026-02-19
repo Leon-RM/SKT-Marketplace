@@ -435,7 +435,8 @@ export default function EditProductPage() {
             {showImageCropper && (
                 <ImageCropper
                     aspectRatio={1}
-                    recommendedSize="800x800 พิกเซล"
+                    recommendedSize="1000x1000 px (HD Product Image)"
+                    label="อัปโหลดรูปสินค้า"
                     onImageUploaded={handleAddImage}
                     onClose={() => setShowImageCropper(false)}
                 />
